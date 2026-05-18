@@ -11,6 +11,21 @@ export default function BukaTiketBaru() {
 
   const [listDosen, setListDosen] = useState([]);
   const [listTopik, setListTopik] = useState([]);
+  const [loadError, setLoadError] = useState('');
+
+  const fallbackTopik = [
+    { id: 1, nama_jenis: 'Pengajuan Surat' },
+    { id: 2, nama_jenis: 'Pengajuan Bimbingan' },
+    { id: 3, nama_jenis: 'Pengajuan Akademik' },
+  ];
+
+  const describeError = (err) => {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    const message = err?.message;
+    const label = status ? `HTTP ${status}` : 'Error';
+    return `${label}${detail ? `: ${detail}` : message ? `: ${message}` : ''}`;
+  };
 
   // const [form, setForm] = useState({
   //   topik: '',
@@ -31,14 +46,37 @@ export default function BukaTiketBaru() {
   useEffect(() => {
     const loadData = async () => {
       try{
-        const [dosenData, topikData] = await Promise.all([
+        setLoadError('');
+        const [dosenResult, topikResult] = await Promise.allSettled([
           ticketService.getLecturers(),
-          ticketService.getTicketTypes()
+          ticketService.getTicketTypes(),
         ]);
 
-        setListDosen(dosenData);
-        setListTopik(topikData);
+        if (dosenResult.status === 'fulfilled') {
+          const uniqueDosen = Array.from(
+            new Map((dosenResult.value || []).map((d) => [String(d.id_user), d])).values()
+          );
+          setListDosen(uniqueDosen);
+        } else {
+          setListDosen([]);
+        }
+
+        if (topikResult.status === 'fulfilled') {
+          setListTopik(topikResult.value || []);
+        } else {
+          setListTopik(fallbackTopik);
+        }
+
+        if (dosenResult.status === 'rejected' || topikResult.status === 'rejected') {
+          const parts = [];
+          if (dosenResult.status === 'rejected') parts.push(`Dosen: ${describeError(dosenResult.reason)}`);
+          if (topikResult.status === 'rejected') parts.push(`Topik: ${describeError(topikResult.reason)}`);
+          setLoadError(parts.join(' | ') || 'Gagal memuat data dosen/topik. Pastikan backend berjalan dan VITE_API_URL benar.');
+        }
       } catch (error) {
+        setListDosen([]);
+        setListTopik(fallbackTopik);
+        setLoadError(describeError(error) || 'Gagal memuat data dosen/topik. Pastikan backend berjalan dan VITE_API_URL benar.');
         console.error('Gagal mengambil data:', error);
       }
     };
@@ -145,6 +183,12 @@ export default function BukaTiketBaru() {
             Pastikan secara rutin Anda mengecek tiket yang anda buat di web ini untuk melihat tanggapan atau konfirmasi dari dosen. Dosen akan menutup tiket jika tidak ada tanggapan lagi dari penanya dalam 3 hari kerja.
           </div>
         </div>
+
+        {loadError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-6">
+            {loadError}
+          </div>
+        )}
 
         {/* Form card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-8">

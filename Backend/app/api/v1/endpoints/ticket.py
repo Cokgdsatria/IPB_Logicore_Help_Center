@@ -43,7 +43,13 @@ def get_ticket_types(db: Session = Depends(get_db)):
 # ENDPOINT: AMBIL DAFTAR DOSEN
 @router.get("/lecturers", response_model=List[DosenResponse])
 def get_lecturers(db: Session = Depends(get_db)):
-    lecturers = db.query(User.id_user, Dosen.nama).join(Dosen, User.id_user == Dosen.id_user).filter(User.role == "DOSEN").all()
+    lecturers = (
+        db.query(User.id_user, User.nama)
+        .filter(User.role == "DOSEN")
+        .distinct()
+        .order_by(User.nama.asc(), User.id_user.asc())
+        .all()
+    )
     return [{"id_user": l.id_user, "nama": l.nama} for l in lecturers]
 
 # ENDPOINT: BUAT TIKET BARU 
