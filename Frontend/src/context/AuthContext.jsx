@@ -3,6 +3,12 @@ import { dummyUser } from '../data/dummy';
 
 const AuthContext = createContext(null);
 
+const normalizeApiUrl = (rawUrl) => {
+  if (!rawUrl) return null;
+  const trimmed = String(rawUrl).replace(/\/+$/, '');
+  return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
@@ -15,7 +21,8 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try{
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+      const apiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL) || 'http://127.0.0.1:8000/api/v1';
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {'Content-Type' : 'application/json'},
         body: JSON.stringify({ email, password })
